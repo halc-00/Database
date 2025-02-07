@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学習ダッシュボード</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <style>
+        /* グラフのサイズ調整 */
+        #weeklyChart, #subjectChart {
+            max-width: 500px; /* 最大幅 */
+            height: 300px; /* 高さ */
+            margin: auto; /* 中央配置 */
+        }
+
+        /* 達成率の円グラフを小さくする */
+        .progress-chart-container {
+            width: 150px; /* 小さめに調整 */
+            height: 150px;
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        #subjectChartTitle {
+            text-align: center;
+            font-size: 20px; /* 文字を大きく */
+            font-weight: bold;
+            margin-top: 100px; /* タイトルの上に余白を増やす */
+        }
+
+        #progressChartContainer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+        /* カレンダーのサイズ調整 */
+        #calendar {
+            width: 60%;
+            max-width: 800px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>学習ダッシュボード</h1>
+
+    <!-- 週間学習時間 (棒グラフ) -->
+    <h2>週間学習時間</h2>
+    <canvas id="weeklyChart"></canvas>
+
+    <!-- 科目ごとの達成率（円グラフ） -->
+    <h2>科目ごとの達成率</h2>
+    <div id="progressChartContainer">
+        <div class="progress-chart-container">
+            <h3>Japanese</h3>
+            <canvas id="progressChart-japanese"></canvas>
+        </div>
+        <div class="progress-chart-container">
+            <h3>Math</h3>
+            <canvas id="progressChart-math"></canvas>
+        </div>
+        <div class="progress-chart-container">
+            <h3>Science</h3>
+            <canvas id="progressChart-science"></canvas>
+        </div>
+        <div class="progress-chart-container">
+            <h3>Physics</h3>
+            <canvas id="progressChart-physics"></canvas>
+        </div>
+        <div class="progress-chart-container">
+            <h3>Social</h3>
+            <canvas id="progressChart-social"></canvas>
+        </div>
+        <div class="progress-chart-container">
+            <h3>English</h3>
+            <canvas id="progressChart-english"></canvas>
+        </div>
+    </div>
+
+    <!-- 学習結果（教科ごとの学習割合） -->
+    <h2 id="subjectChartTitle">学習結果（教科ごとの学習割合）</h2>
+    <canvas id="subjectChart"></canvas>>
+
+    <!-- 学習履歴カレンダー -->
+    <h2>学習履歴カレンダー</h2>
+    <div id="calendar"></div>
+
+    <!-- 学習計画のモーダル -->
+    <div id="planDetailsModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); z-index: 1000;">
+        <h2>学習計画の詳細</h2>
+        <p id="planDetails"></p>
+        <button id="deletePlanButton" style="background-color: red; color: white; padding: 5px 10px; border: none; cursor: pointer;">
+            この計画を削除
+        </button>
+        <button id="closePlanButton">閉じる</button>
+    </div>
+
+    <!-- 学習記録のモーダル -->
+    <div id="recordDetailsModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); z-index: 1000;">
+        <h2>学習記録の詳細</h2>
+        <p id="recordDetails"></p>
+        <button id="deleteRecordButton" style="background-color: red; color: white; padding: 5px 10px; border: none; cursor: pointer;">
+            この記録を削除
+        </button>
+        <button id="closeRecordButton">閉じる</button>
+    </div>
+
+    <!-- 学習計画登録フォーム -->
+    <h2>学習計画の登録</h2>
+    <form id="studyPlanForm">
+        <label for="subject">教科:</label>
+        <select id="subject" name="subject" required>
+            <option value="japanese">Japanese</option>
+            <option value="math">Math</option>
+            <option value="science">Science</option>
+            <option value="physics">Physics</option>
+            <option value="social">Social</option>
+            <option value="english">English</option>
+        </select><br>
+
+        <label for="selected_day">曜日:</label>
+        <select id="selected_day" name="selected_day" required>
+            <option value="Monday">月曜日</option>
+            <option value="Tuesday">火曜日</option>
+            <option value="Wednesday">水曜日</option>
+            <option value="Thursday">木曜日</option>
+            <option value="Friday">金曜日</option>
+            <option value="Saturday">土曜日</option>
+            <option value="Sunday">日曜日</option>
+        </select><br>
+
+        <label for="goal_time">目標時間（分）:</label>
+        <input type="number" id="goal_time" name="goal_time" required><br>
+
+        <button type="submit">学習計画を登録</button>
+    </form>
+
+    <h2>学習記録の登録</h2>
+    <form id="studyRecordForm">
+        <label for="record_subject">教科:</label>
+        <select id="record_subject" name="subject" required>
+            <option value="japanese">Japanese</option>
+            <option value="math">Math</option>
+            <option value="science">Science</option>
+            <option value="physics">Physics</option>
+            <option value="social">Social</option>
+            <option value="english">English</option>
+        </select><br>
+
+        <label for="record_date">日付:</label>
+        <input type="date" id="record_date" name="record_date" required><br>
+
+        <label for="study_time">学習時間（分）:</label>
+        <input type="number" id="study_time" name="study_time" required><br>
+
+        <button type="submit">学習記録を登録</button>
+    </form>
+
+
+    <h2>メモの登録</h2>
+    <form id="studyNoteForm">
+        <label for="note_date">日付:</label>
+        <input type="date" id="note_date" name="note_date" required><br>
+
+        <label for="note_content">メモ内容:</label>
+        <textarea id="note_content" name="note_content" required></textarea><br>
+
+        <button type="submit">メモを登録</button>
+    </form>
+
+    <h2>登録されたメモ</h2>
+    <ul id="studyNoteList"></ul>
+
+
+
+    <script>
+        // 週間学習時間（棒グラフ）
+        fetch('/api/stats/weekly/1')
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('weeklyChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.map(item => item.date),
+                        datasets: [{
+                            label: '学習時間 (分)',
+                            data: data.map(item => item.total_time),
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,  // アスペクト比を維持
+                    }
+                });
+            });
+
+        // 科目ごとの達成率（円グラフ）
+        fetch('/api/stats/progress/1')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(subjectData => {
+                    const ctx = document.getElementById(`progressChart-${subjectData.subject}`).getContext('2d');
+                    new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ["達成", "未達成"],
+                            datasets: [{
+                                data: [subjectData.progress, 100 - subjectData.progress],
+                                backgroundColor: ["green", "lightgray"]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true
+                        }
+                    });
+                });
+            })
+            .catch(error => console.error("達成率の取得エラー:", error));
+
+        // 学習結果（教科ごとの学習割合）
+        fetch('/api/stats/subject_distribution/1')
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('subjectChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: data.map(item => item.subject),
+                        datasets: [{
+                            data: data.map(item => item.total_time),
+                            backgroundColor: ['red', 'blue', 'green', 'yellow', 'purple']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true
+                    }
+                });
+            })
+            .catch(error => console.error("API取得エラー:", error));
+
+        // 学習履歴カレンダー
+        let selectedPlanId = null; // 選択された学習計画ID
+        let selectedRecordId = null; // 選択された学習記録ID
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                events: [],
+                eventClick: function (info) {
+                    console.log("クリックされたイベント:", info.event);
+
+                    if (info.event.backgroundColor === "red") {
+                        selectedPlanId = info.event.extendedProps.plan_id || null;
+                        document.getElementById('planDetails').textContent = info.event.title;
+                        document.getElementById('planDetailsModal').style.display = "block";
+                    } else if (info.event.backgroundColor === "blue") {
+                        selectedRecordId = info.event.extendedProps.record_id || null;
+                        document.getElementById('recordDetails').textContent = info.event.title;
+                        document.getElementById('recordDetailsModal').style.display = "block";
+                    }
+                }
+            });
+
+            function fetchCalendarData() {
+                fetch('/api/stats/calendar/1')
+                    .then(response => response.json())
+                    .then(data => {
+                        const studyRecords = data.map(item => ({
+                            title: item.title,
+                            start: item.start,
+                            color: item.color,
+                            extendedProps: item.color === "blue" ? { record_id: item.record_id } : { plan_id: item.plan_id }
+                        }));
+
+                        calendar.removeAllEvents();
+                        calendar.addEventSource(studyRecords);
+                        calendar.render();
+                    })
+                    .catch(error => console.error("カレンダーデータの取得エラー:", error));
+            }
+
+            fetchCalendarData();
+
+            // 📌 学習履歴カレンダーにメモを表示
+            function fetchCalendarNotes() {
+                fetch('/api/stats/calendar_notes/1')
+                    .then(response => response.json())
+                    .then(data => {
+                        const calendarEl = document.getElementById('calendar');
+                        const calendar = new FullCalendar.Calendar(calendarEl, {
+                            initialView: 'dayGridMonth',
+                            events: data,  // 取得したメモデータを追加
+                            eventClick: function (info) {
+                                if (info.event.backgroundColor === "gray") {
+                                    alert(`メモの内容:\n${info.event.title}`);
+                                }
+                            }
+                        });
+
+                        calendar.render();
+                    })
+                    .catch(error => console.error("カレンダーデータの取得エラー:", error));
+            }
+
+            // ページ読み込み時にカレンダーを更新
+            fetchCalendarNotes();
+
+            // 計画削除処理
+            document.getElementById("deletePlanButton").addEventListener("click", function () {
+                if (!selectedPlanId) {
+                    alert("削除する計画の ID がありません。");
+                    return;
+                }
+
+                fetch(`/api/study_plans/${selectedPlanId}`, { method: "DELETE" })
+                    .then(response => {
+                        if (!response.ok) throw new Error("削除に失敗しました");
+                        return response.json();
+                    })
+                    .then(() => {
+                        alert("学習計画を削除しました！");
+                        document.getElementById('planDetailsModal').style.display = "none";
+                        fetchCalendarData();
+                        fetchStudyPlans();
+                    })
+                    .catch(error => {
+                        console.error("削除エラー:", error);
+                        alert("削除に失敗しました。");
+                    });
+            });
+
+            // 学習記録削除処理
+            document.getElementById("deleteRecordButton").addEventListener("click", function () {
+                if (!selectedRecordId) {
+                    alert("削除する記録の ID がありません。");
+                    return;
+                }
+
+                fetch(`/api/study_records/${selectedRecordId}`, { method: "DELETE" })
+                    .then(response => {
+                        if (!response.ok) throw new Error("削除に失敗しました");
+                        return response.json();
+                    })
+                    .then(() => {
+                        alert("学習記録を削除しました！");
+                        document.getElementById('recordDetailsModal').style.display = "none";
+                        fetchCalendarData();
+                        fetchWeeklyStats();
+                        fetchSubjectDistribution();
+                        fetchProgressStats();
+                    })
+                    .catch(error => {
+                        console.error("削除エラー:", error);
+                        alert("削除に失敗しました。");
+                    });
+            });
+
+            fetchCalendarData();
+        });
+
+        function fetchWeeklyStats() {
+            fetch('/api/stats/weekly/1')
+                .then(response => response.json())
+                .then(data => {
+                    const ctx = document.getElementById('weeklyChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.map(item => item.date),
+                            datasets: [{
+                                label: '学習時間 (分)',
+                                data: data.map(item => item.total_time),
+                                backgroundColor: 'rgba(54, 162, 235, 0.5)'
+                            }]
+                        }
+                    });
+                });
+        }
+
+        function fetchProgressStats() {
+            fetch('/api/stats/progress/1')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(subjectData => {
+                        const ctx = document.getElementById(`progressChart-${subjectData.subject}`).getContext('2d');
+                        new Chart(ctx, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ["達成", "未達成"],
+                                datasets: [{
+                                    data: [subjectData.progress, 100 - subjectData.progress],
+                                    backgroundColor: ["green", "lightgray"]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: true
+                            }
+                        });
+                    });
+                })
+                .catch(error => console.error("達成率の取得エラー:", error));
+        }
+
+        function fetchSubjectDistribution() {
+            fetch('/api/stats/subject_distribution/1')
+                .then(response => response.json())
+                .then(data => {
+                    const ctx = document.getElementById('subjectChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: data.map(item => item.subject),
+                            datasets: [{
+                                data: data.map(item => item.total_time),
+                                backgroundColor: ['red', 'blue', 'green', 'yellow', 'purple']
+                            }]
+                        }
+                    });
+                })
+                .catch(error => console.error("学習割合の取得エラー:", error));
+        }
+
+        function fetchStudyPlans() {
+            fetch("/api/study_plans/1")
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById("studyPlanList");
+                    list.innerHTML = "";
+                    data.forEach(plan => {
+                        const item = document.createElement("li");
+                        item.textContent = `${plan.subject} - 目標 ${plan.goal_time} 分`;
+                        list.appendChild(item);
+                    });
+                })
+                .catch(error => console.error("学習計画取得エラー:", error));
+        }
+
+        document.getElementById("studyPlanForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            console.log("📌 登録ボタンがクリックされました！");
+
+            const selectedDayElement = document.getElementById("selected_day");
+            if (!selectedDayElement) {
+                console.error("❌ selected_day の要素が見つかりません！");
+                alert("曜日を選択してください。");
+                return;
+            }
+
+            console.log("✅ selected_day:", selectedDayElement.value);
+
+            const formData = {
+                user_id: 1,
+                subject: document.getElementById("subject").value,
+                selected_day: selectedDayElement.value,
+                goal_time: parseInt(document.getElementById("goal_time").value),
+                weekly_schedule: {
+                    Monday: parseInt(document.getElementById("mon")?.value) || 0,
+                    Tuesday: parseInt(document.getElementById("tue")?.value) || 0,
+                    Wednesday: parseInt(document.getElementById("wed")?.value) || 0,
+                    Thursday: parseInt(document.getElementById("thu")?.value) || 0,
+                    Friday: parseInt(document.getElementById("fri")?.value) || 0,
+                    Saturday: parseInt(document.getElementById("sat")?.value) || 0,
+                    Sunday: parseInt(document.getElementById("sun")?.value) || 0
+                }
+            };
+
+            console.log("📌 送信データ:", formData);
+
+            fetch("/api/study_plans", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData)
+            })
+                .then(response => {
+                    console.log("📌 サーバーからのレスポンス:", response);
+                    if (!response.ok) {
+                        throw new Error("サーバーエラー");
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("📌 登録成功:", data);
+                    alert("学習計画を登録しました！");
+
+                    // 登録成功後にデータを再取得
+                    fetchStudyPlans();
+                    fetchCalendarData();
+                    fetchWeeklyStats();
+                    fetchProgressStats();
+                    fetchSubjectDistribution();
+                })
+                .catch(error => {
+
+                });
+        });
+
+        document.getElementById("studyRecordForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            console.log("📌 学習記録の登録ボタンがクリックされました！");
+
+            const formData = {
+                user_id: 1, // 仮の値（実際はログインユーザーIDを取得する）
+                subject: document.getElementById("record_subject").value,
+                record_date: document.getElementById("record_date").value,
+                study_time: parseInt(document.getElementById("study_time").value)
+            };
+
+            fetch("/api/study_records", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData)
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error("サーバーエラー");
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("📌 登録成功:", data);
+                    alert("学習記録を登録しました！");
+                    fetchStudyRecords();
+                })
+                .catch(error => {
+                    console.error("❌ 登録エラー:", error);
+                    alert("登録に失敗しました。");
+                });
+        });
+
+        function fetchStudyRecords() {
+            fetch("/api/study_records/1")
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById("studyRecordList");
+                    list.innerHTML = "";
+                    data.forEach(record => {
+                        const item = document.createElement("li");
+                        item.textContent = `${record.record_date} - ${record.subject} - ${record.study_time} 分`;
+
+                        // 削除ボタン
+                        const deleteButton = document.createElement("button");
+                        deleteButton.textContent = "削除";
+                        deleteButton.onclick = function () {
+                            deleteStudyRecord(record.id);
+                        };
+
+                        item.appendChild(deleteButton);
+                        list.appendChild(item);
+                    });
+                })
+                .catch(error => console.error("学習記録取得エラー:", error));
+        }
+
+        function deleteStudyRecord(recordId) {
+            fetch(`/api/study_records/${recordId}`, { method: "DELETE" })
+                .then(response => {
+                    if (!response.ok) throw new Error("削除エラー");
+                    return response.json();
+                })
+                .then(() => {
+                    alert("学習記録を削除しました！");
+                    fetchStudyRecords();
+                })
+                .catch(error => console.error("削除エラー:", error));
+        }
+
+        // 学習計画のモーダルを閉じる
+        function closePlanDetails() {
+            document.getElementById('planDetailsModal').style.display = "none";
+        }
+
+        // 学習記録のモーダルを閉じる
+        function closeRecordDetails() {
+            document.getElementById('recordDetailsModal').style.display = "none";
+        }
+
+        // クリックイベントを設定
+        document.addEventListener("DOMContentLoaded", function () {
+            document.getElementById("closePlanButton").addEventListener("click", closePlanDetails);
+            document.getElementById("closeRecordButton").addEventListener("click", closeRecordDetails);
+            // 📌 メモの保存処理
+            const studyNoteForm = document.getElementById("studyNoteForm");
+            if (studyNoteForm) {
+                studyNoteForm.addEventListener("submit", function (event) {
+                    event.preventDefault();
+                    console.log("📌 メモの保存ボタンが押されました！");
+
+                    const formData = {
+                        user_id: 1, // 仮の値（実際はログインユーザーIDを取得する）
+                        study_date: document.getElementById("note_date").value,
+                        content: document.getElementById("note_content").value
+                    };
+
+                    fetch("/api/study_notes", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(formData)
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("📌 メモ保存成功:", data);
+                            alert("メモを保存しました！");
+                            fetchStudyNotes();
+                            fetchCalendarNotes(); // カレンダーのデータを更新
+                        })
+                        .catch(error => console.error("❌ メモ保存エラー:", error));
+                });
+            }
+
+            // 📌 メモ一覧の取得
+            function fetchStudyNotes() {
+                fetch("/api/study_notes/1")  // ユーザーID 1 のメモを取得
+                    .then(response => response.json())
+                    .then(data => {
+                        const list = document.getElementById("studyNoteList");
+                        if (!list) {
+                            console.error("❌ 'studyNoteList' が見つかりません！");
+                            return;
+                        }
+
+                        list.innerHTML = "";  // 一旦クリア
+                        data.forEach(note => {
+                            const item = document.createElement("li");
+                            item.textContent = `${note.study_date}: ${note.content} `;
+
+                            // 削除ボタンを作成
+                            const deleteButton = document.createElement("button");
+                            deleteButton.textContent = "削除";
+                            deleteButton.style.marginLeft = "10px";
+                            deleteButton.onclick = function () {
+                                deleteStudyNote(note.id);
+                            };
+
+                            item.appendChild(deleteButton);
+                            list.appendChild(item);
+                        });
+                    })
+                    .catch(error => console.error("❌ メモ取得エラー:", error));
+            }
+
+            // 📌 メモ削除処理
+            function deleteStudyNote(noteId) {
+                console.log(`🗑️ 削除リクエスト送信: /api/study_notes/${noteId}`);
+
+                fetch(`/api/study_notes/${noteId}`, { method: "DELETE" })
+                    .then(response => {
+                        if (!response.ok) throw new Error("削除エラー");
+                        return response.json();
+                    })
+                    .then(() => {
+                        alert("メモを削除しました！");
+                        fetchStudyNotes();    // メモ一覧を更新
+                        fetchCalendarNotes(); // カレンダーを更新
+                    })
+                    .catch(error => console.error("❌ メモ削除エラー:", error));
+            }
+
+            // 初回メモ取得
+            fetchStudyNotes();
+;
+        });
+
+    </script>
+</body>
+</html>
